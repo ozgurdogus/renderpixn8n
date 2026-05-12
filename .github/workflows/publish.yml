@@ -24,7 +24,9 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build
-        run: npm run build
+        run: |
+          rm -rf dist
+          npm run build
 
       - name: Publish to npm with provenance
         run: npm publish --provenance --access public --ignore-scripts
