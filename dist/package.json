@@ -1,6 +1,6 @@
 {
     "name": "n8n-nodes-renderpix",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "description": "n8n community node for RenderPix — HTML to image and URL screenshot API",
     "license": "MIT",
     "homepage": "https://renderpix.dev",
@@ -13,11 +13,11 @@
     ],
     "author": {
         "name": "RenderPix",
-        "email": "support@renderpix.dev"
+        "email": "hello@renderpix.dev"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/renderpix/n8n-nodes-renderpix.git"
+        "url": "https://github.com/ozgurdogus/renderpixn8n.git"
     },
     "scripts": {
         "build": "n8n-node build",
@@ -49,6 +49,5 @@
     },
     "peerDependencies": {
         "n8n-workflow": "*"
-    },
-    "dependencies": {}
+    }
 }
