@@ -198,7 +198,6 @@ export class RenderPix implements INodeType {
 		const returnData: INodeExecutionData[] = [];
 		const credentials = await this.getCredentials('renderPixApi');
 
-		const apiKey = credentials.apiKey as string;
 		const baseUrl = ((credentials.baseUrl as string) || 'https://renderpix.dev').replace(/\/$/, '');
 
 		for (let i = 0; i < items.length; i++) {
@@ -229,15 +228,18 @@ export class RenderPix implements INodeType {
 					endpoint = '/v1/screenshot';
 				}
 
-				const response = (await this.helpers.httpRequest({
-					method: 'POST',
-					url: `${baseUrl}${endpoint}`,
-					headers: { 'X-API-Key': apiKey },
-					body,
-					json: true,
-					encoding: 'arraybuffer',
-					returnFullResponse: true,
-				})) as { body: ArrayBuffer; headers: Record<string, string>; statusCode: number };
+				const response = (await this.helpers.httpRequestWithAuthentication.call(
+					this,
+					'renderPixApi',
+					{
+						method: 'POST',
+						url: `${baseUrl}${endpoint}`,
+						body,
+						json: true,
+						encoding: 'arraybuffer',
+						returnFullResponse: true,
+					},
+				)) as { body: ArrayBuffer; headers: Record<string, string>; statusCode: number };
 
 				const imageBuffer = Buffer.from(response.body);
 				const resHeaders = response.headers ?? {};
