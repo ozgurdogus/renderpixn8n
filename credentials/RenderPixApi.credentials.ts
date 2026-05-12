@@ -42,7 +42,7 @@ export class RenderPixApi implements ICredentialType {
 	test: ICredentialTestRequest = {
 		request: {
 			baseURL: '={{$credentials.baseUrl}}',
-			url: '/v1/usage',
+			url: '/health',
 			method: 'GET',
 		},
 	};
