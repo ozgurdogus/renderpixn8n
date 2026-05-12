@@ -177,7 +177,6 @@ class RenderPix {
         const items = this.getInputData();
         const returnData = [];
         const credentials = await this.getCredentials('renderPixApi');
-        const apiKey = credentials.apiKey;
         const baseUrl = (credentials.baseUrl || 'https://renderpix.dev').replace(/\/$/, '');
         for (let i = 0; i < items.length; i++) {
             try {
@@ -205,10 +204,9 @@ class RenderPix {
                     body.url = this.getNodeParameter('url', i);
                     endpoint = '/v1/screenshot';
                 }
-                const response = (await this.helpers.httpRequest({
+                const response = (await this.helpers.httpRequestWithAuthentication.call(this, 'renderPixApi', {
                     method: 'POST',
                     url: `${baseUrl}${endpoint}`,
-                    headers: { 'X-API-Key': apiKey },
                     body,
                     json: true,
                     encoding: 'arraybuffer',
