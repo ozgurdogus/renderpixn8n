@@ -17,7 +17,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/renderpix/n8n-nodes-renderpix.git"
+		"url": "https://github.com/ozgurdogus/renderpixn8n.git"
 	},
 	"scripts": {
 		"build": "n8n-node build",
