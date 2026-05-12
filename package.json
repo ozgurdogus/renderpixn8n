@@ -34,10 +34,10 @@
 	"n8n": {
 		"n8nNodesApiVersion": 1,
 		"credentials": [
-		  "dist/credentials/RenderPixApi.credentials.js"
+			"dist/credentials/RenderPixApi.credentials.js"
 		],
 		"nodes": [
-		  "dist/nodes/RenderPix/RenderPix.node.js"
+			"dist/nodes/RenderPix/RenderPix.node.js"
 		]
 	},
 	"devDependencies": {
@@ -49,8 +49,5 @@
 	},
 	"peerDependencies": {
 		"n8n-workflow": "*"
-	},
-	"dependencies": {
-		"renderpix": "^1.0.0"
 	}
 }

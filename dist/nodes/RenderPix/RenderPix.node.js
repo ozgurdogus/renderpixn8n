@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RenderPix = void 0;
 const n8n_workflow_1 = require("n8n-workflow");
-const renderpix_1 = require("renderpix");
 class RenderPix {
     constructor() {
         this.description = {
@@ -174,13 +173,12 @@ class RenderPix {
         };
     }
     async execute() {
+        var _a, _b, _c, _d, _e;
         const items = this.getInputData();
         const returnData = [];
         const credentials = await this.getCredentials('renderPixApi');
-        const client = new renderpix_1.RenderPix({
-            apiKey: credentials.apiKey,
-            baseUrl: credentials.baseUrl || 'https://renderpix.dev',
-        });
+        const apiKey = credentials.apiKey;
+        const baseUrl = (credentials.baseUrl || 'https://renderpix.dev').replace(/\/$/, '');
         for (let i = 0; i < items.length; i++) {
             try {
                 const operation = this.getNodeParameter('operation', i);
@@ -191,37 +189,44 @@ class RenderPix {
                 const scale = this.getNodeParameter('scale', i);
                 const returnAs = this.getNodeParameter('returnAs', i);
                 const advanced = this.getNodeParameter('advancedOptions', i, {});
-                const commonParams = {
-                    width,
-                    height,
-                    format,
-                    quality: format !== 'png' ? quality : undefined,
-                    scale,
-                    selector: advanced.selector || undefined,
-                    fullPage: advanced.fullPage || undefined,
-                };
-                let result;
+                const body = { width, height, format, scale };
+                if (format !== 'png')
+                    body.quality = quality;
+                if (advanced.selector)
+                    body.selector = advanced.selector;
+                if (advanced.fullPage)
+                    body.fullPage = advanced.fullPage;
+                let endpoint;
                 if (operation === 'renderHtml') {
-                    const html = this.getNodeParameter('html', i);
-                    result = await client.render({ html, ...commonParams });
+                    body.html = this.getNodeParameter('html', i);
+                    endpoint = '/v1/render';
                 }
                 else {
-                    const url = this.getNodeParameter('url', i);
-                    result = await client.screenshot({ url, ...commonParams });
+                    body.url = this.getNodeParameter('url', i);
+                    endpoint = '/v1/screenshot';
                 }
+                const response = (await this.helpers.httpRequest({
+                    method: 'POST',
+                    url: `${baseUrl}${endpoint}`,
+                    headers: { 'X-API-Key': apiKey },
+                    body,
+                    json: true,
+                    encoding: 'arraybuffer',
+                    returnFullResponse: true,
+                }));
+                const imageBuffer = Buffer.from(response.body);
+                const resHeaders = (_a = response.headers) !== null && _a !== void 0 ? _a : {};
                 const jsonMeta = {
                     success: true,
-                    format: result.format,
-                    width: result.width,
-                    height: result.height,
-                    renderTime: result.renderTime,
-                    usageRemaining: result.usageRemaining,
+                    format,
+                    width: parseInt((_b = resHeaders['x-width']) !== null && _b !== void 0 ? _b : String(width), 10),
+                    height: parseInt((_c = resHeaders['x-height']) !== null && _c !== void 0 ? _c : String(height), 10),
+                    renderTime: parseInt((_d = resHeaders['x-render-time']) !== null && _d !== void 0 ? _d : '0', 10),
+                    usageRemaining: parseInt((_e = resHeaders['x-usage-remaining']) !== null && _e !== void 0 ? _e : '0', 10),
                 };
                 if (returnAs === 'binary') {
                     const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i);
-                    const filename = `renderpix-${Date.now()}.${result.format}`;
-                    const mimeType = `image/${result.format}`;
-                    const binaryData = await this.helpers.prepareBinaryData(result.image, filename, mimeType);
+                    const binaryData = await this.helpers.prepareBinaryData(imageBuffer, `renderpix-${Date.now()}.${format}`, `image/${format}`);
                     returnData.push({
                         json: jsonMeta,
                         binary: { [binaryPropertyName]: binaryData },
@@ -229,38 +234,31 @@ class RenderPix {
                 }
                 else if (returnAs === 'base64') {
                     returnData.push({
-                        json: {
-                            ...jsonMeta,
-                            imageBase64: result.image.toString('base64'),
-                        },
+                        json: { ...jsonMeta, imageBase64: imageBuffer.toString('base64') },
                     });
                 }
                 else {
                     returnData.push({
-                        json: {
-                            ...jsonMeta,
-                            imageUrl: `data:image/${result.format};base64,${result.image.toString('base64')}`,
-                        },
+                        json: { ...jsonMeta, imageUrl: `data:image/${format};base64,${imageBuffer.toString('base64')}` },
                     });
                 }
             }
             catch (error) {
                 if (this.continueOnFail()) {
-                    const failErr = error;
+                    const err = error;
                     returnData.push({
-                        json: { success: false, error: failErr.message, code: failErr.code },
+                        json: { success: false, error: err.message, statusCode: err.statusCode },
                         pairedItem: { item: i },
                     });
                     continue;
                 }
-                const rpErr = error;
-                if (rpErr.status !== undefined) {
-                    throw new n8n_workflow_1.NodeOperationError(this.getNode(), rpErr.message, {
-                        itemIndex: i,
-                        description: `Status ${rpErr.status}${rpErr.code ? ` · ${rpErr.code}` : ''}`,
-                    });
-                }
-                throw error;
+                if (error instanceof n8n_workflow_1.NodeOperationError)
+                    throw error;
+                const err = error;
+                throw new n8n_workflow_1.NodeOperationError(this.getNode(), err.message, {
+                    itemIndex: i,
+                    description: err.statusCode ? `HTTP ${err.statusCode}` : undefined,
+                });
             }
         }
         return [returnData];

@@ -7,8 +7,6 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
-import { RenderPix as RenderPixSDK } from 'renderpix';
-
 export class RenderPix implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'RenderPix',
@@ -200,10 +198,8 @@ export class RenderPix implements INodeType {
 		const returnData: INodeExecutionData[] = [];
 		const credentials = await this.getCredentials('renderPixApi');
 
-		const client = new RenderPixSDK({
-			apiKey: credentials.apiKey as string,
-			baseUrl: (credentials.baseUrl as string) || 'https://renderpix.dev',
-		});
+		const apiKey = credentials.apiKey as string;
+		const baseUrl = ((credentials.baseUrl as string) || 'https://renderpix.dev').replace(/\/$/, '');
 
 		for (let i = 0; i < items.length; i++) {
 			try {
@@ -219,76 +215,76 @@ export class RenderPix implements INodeType {
 					fullPage?: boolean;
 				};
 
-				const commonParams = {
-					width,
-					height,
-					format,
-					quality: format !== 'png' ? quality : undefined,
-					scale,
-					selector: advanced.selector || undefined,
-					fullPage: advanced.fullPage || undefined,
-				};
+				const body: Record<string, unknown> = { width, height, format, scale };
+				if (format !== 'png') body.quality = quality;
+				if (advanced.selector) body.selector = advanced.selector;
+				if (advanced.fullPage) body.fullPage = advanced.fullPage;
 
-				let result;
+				let endpoint: string;
 				if (operation === 'renderHtml') {
-					const html = this.getNodeParameter('html', i) as string;
-					result = await client.render({ html, ...commonParams });
+					body.html = this.getNodeParameter('html', i) as string;
+					endpoint = '/v1/render';
 				} else {
-					const url = this.getNodeParameter('url', i) as string;
-					result = await client.screenshot({ url, ...commonParams });
+					body.url = this.getNodeParameter('url', i) as string;
+					endpoint = '/v1/screenshot';
 				}
 
+				const response = (await this.helpers.httpRequest({
+					method: 'POST',
+					url: `${baseUrl}${endpoint}`,
+					headers: { 'X-API-Key': apiKey },
+					body,
+					json: true,
+					encoding: 'arraybuffer',
+					returnFullResponse: true,
+				})) as { body: ArrayBuffer; headers: Record<string, string>; statusCode: number };
+
+				const imageBuffer = Buffer.from(response.body);
+				const resHeaders = response.headers ?? {};
 				const jsonMeta = {
 					success: true,
-					format: result.format,
-					width: result.width,
-					height: result.height,
-					renderTime: result.renderTime,
-					usageRemaining: result.usageRemaining,
+					format,
+					width: parseInt(resHeaders['x-width'] ?? String(width), 10),
+					height: parseInt(resHeaders['x-height'] ?? String(height), 10),
+					renderTime: parseInt(resHeaders['x-render-time'] ?? '0', 10),
+					usageRemaining: parseInt(resHeaders['x-usage-remaining'] ?? '0', 10),
 				};
 
 				if (returnAs === 'binary') {
 					const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i) as string;
-					const filename = `renderpix-${Date.now()}.${result.format}`;
-					const mimeType = `image/${result.format}`;
-					const binaryData = await this.helpers.prepareBinaryData(result.image, filename, mimeType);
+					const binaryData = await this.helpers.prepareBinaryData(
+						imageBuffer,
+						`renderpix-${Date.now()}.${format}`,
+						`image/${format}`,
+					);
 					returnData.push({
 						json: jsonMeta,
 						binary: { [binaryPropertyName]: binaryData },
 					});
 				} else if (returnAs === 'base64') {
 					returnData.push({
-						json: {
-							...jsonMeta,
-							imageBase64: result.image.toString('base64'),
-						},
+						json: { ...jsonMeta, imageBase64: imageBuffer.toString('base64') },
 					});
 				} else {
-					// dataUrl
 					returnData.push({
-						json: {
-							...jsonMeta,
-							imageUrl: `data:image/${result.format};base64,${result.image.toString('base64')}`,
-						},
+						json: { ...jsonMeta, imageUrl: `data:image/${format};base64,${imageBuffer.toString('base64')}` },
 					});
 				}
 			} catch (error) {
 				if (this.continueOnFail()) {
-					const failErr = error as { message: string; code?: string };
+					const err = error as { message: string; statusCode?: number };
 					returnData.push({
-						json: { success: false, error: failErr.message, code: failErr.code },
+						json: { success: false, error: err.message, statusCode: err.statusCode },
 						pairedItem: { item: i },
 					});
 					continue;
 				}
-				const rpErr = error as { status?: number; code?: string; message: string };
-				if (rpErr.status !== undefined) {
-					throw new NodeOperationError(this.getNode(), rpErr.message, {
-						itemIndex: i,
-						description: `Status ${rpErr.status}${rpErr.code ? ` · ${rpErr.code}` : ''}`,
-					});
-				}
-				throw error;
+				if (error instanceof NodeOperationError) throw error;
+				const err = error as { message: string; statusCode?: number };
+				throw new NodeOperationError(this.getNode(), err.message, {
+					itemIndex: i,
+					description: err.statusCode ? `HTTP ${err.statusCode}` : undefined,
+				});
 			}
 		}
 
