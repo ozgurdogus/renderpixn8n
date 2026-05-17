@@ -3,6 +3,8 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	JsonObject,
+	NodeApiError,
 	NodeConnectionTypes,
 	NodeOperationError,
 } from 'n8n-workflow';
@@ -98,8 +100,8 @@ export class RenderPix implements INodeType {
 				name: 'format',
 				type: 'options',
 				options: [
-					{ name: 'PNG', value: 'png' },
 					{ name: 'JPEG', value: 'jpeg' },
+					{ name: 'PNG', value: 'png' },
 					{ name: 'WebP', value: 'webp' },
 				],
 				default: 'png',
@@ -162,19 +164,19 @@ export class RenderPix implements INodeType {
 				type: 'options',
 				options: [
 					{
-						name: 'Binary File',
-						value: 'binary',
-						description: 'Image available as binary data for downstream nodes (e.g. Write File, Send Email)',
-					},
-					{
 						name: 'Base64 String',
 						value: 'base64',
 						description: 'Raw base64-encoded image string in the JSON output',
 					},
 					{
+						name: 'Binary File',
+						value: 'binary',
+						description: 'Image available as binary data for downstream nodes (e.g. Write File, Send Email)',
+					},
+					{
 						name: 'Data URL',
 						value: 'dataUrl',
-						description: 'Ready-to-use data:image/... URL for embedding in HTML or sending via HTTP',
+						description: 'Ready-to-use data:image/... URL for embedding in HTML or sending via HTTP.',
 					},
 				],
 				default: 'binary',
@@ -191,6 +193,7 @@ export class RenderPix implements INodeType {
 				description: 'Name of the binary property to put the image in',
 			},
 		],
+		usableAsTool: true,
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -262,14 +265,17 @@ export class RenderPix implements INodeType {
 					returnData.push({
 						json: jsonMeta,
 						binary: { [binaryPropertyName]: binaryData },
+						pairedItem: { item: i },
 					});
 				} else if (returnAs === 'base64') {
 					returnData.push({
 						json: { ...jsonMeta, imageBase64: imageBuffer.toString('base64') },
+						pairedItem: { item: i },
 					});
 				} else {
 					returnData.push({
 						json: { ...jsonMeta, imageUrl: `data:image/${format};base64,${imageBuffer.toString('base64')}` },
+						pairedItem: { item: i },
 					});
 				}
 			} catch (error) {
@@ -283,9 +289,12 @@ export class RenderPix implements INodeType {
 				}
 				if (error instanceof NodeOperationError) throw error;
 				const err = error as { message: string; statusCode?: number };
+				// Wrap HTTP errors in NodeApiError for proper n8n UI display
+				if (err.statusCode) {
+					throw new NodeApiError(this.getNode(), err as unknown as JsonObject);
+				}
 				throw new NodeOperationError(this.getNode(), err.message, {
 					itemIndex: i,
-					description: err.statusCode ? `HTTP ${err.statusCode}` : undefined,
 				});
 			}
 		}

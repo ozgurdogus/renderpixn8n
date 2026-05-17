@@ -36,7 +36,7 @@ class RenderPixApi {
         this.test = {
             request: {
                 baseURL: '={{$credentials.baseUrl}}',
-                url: '/v1/usage',
+                url: '/health',
                 method: 'GET',
             },
         };

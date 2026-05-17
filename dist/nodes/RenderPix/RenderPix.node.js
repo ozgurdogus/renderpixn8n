@@ -85,8 +85,8 @@ class RenderPix {
                     name: 'format',
                     type: 'options',
                     options: [
-                        { name: 'PNG', value: 'png' },
                         { name: 'JPEG', value: 'jpeg' },
+                        { name: 'PNG', value: 'png' },
                         { name: 'WebP', value: 'webp' },
                     ],
                     default: 'png',
@@ -228,16 +228,19 @@ class RenderPix {
                     returnData.push({
                         json: jsonMeta,
                         binary: { [binaryPropertyName]: binaryData },
+                        pairedItem: { item: i },
                     });
                 }
                 else if (returnAs === 'base64') {
                     returnData.push({
                         json: { ...jsonMeta, imageBase64: imageBuffer.toString('base64') },
+                        pairedItem: { item: i },
                     });
                 }
                 else {
                     returnData.push({
                         json: { ...jsonMeta, imageUrl: `data:image/${format};base64,${imageBuffer.toString('base64')}` },
+                        pairedItem: { item: i },
                     });
                 }
             }
@@ -253,9 +256,11 @@ class RenderPix {
                 if (error instanceof n8n_workflow_1.NodeOperationError)
                     throw error;
                 const err = error;
+                if (err.statusCode) {
+                    throw new n8n_workflow_1.NodeApiError(this.getNode(), err);
+                }
                 throw new n8n_workflow_1.NodeOperationError(this.getNode(), err.message, {
                     itemIndex: i,
-                    description: err.statusCode ? `HTTP ${err.statusCode}` : undefined,
                 });
             }
         }
