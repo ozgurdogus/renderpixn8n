@@ -1,177 +1,118 @@
 # n8n-nodes-renderpix
 
-[n8n](https://n8n.io) community node for **[RenderPix](https://renderpix.dev)** — convert HTML to pixel-perfect images and capture URL screenshots directly inside your n8n workflows.
+**RenderPix community node for n8n.** Generate images from HTML — with batch rendering, template variables, and async callbacks.
 
 [![npm version](https://img.shields.io/npm/v/n8n-nodes-renderpix.svg)](https://www.npmjs.com/package/n8n-nodes-renderpix)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
-
----
-
-## Features
-
-- **Render HTML → Image**: Turn any HTML string into a PNG, JPEG, or WebP image
-- **Screenshot URL**: Capture pixel-perfect screenshots of any public webpage
-- **Retina / High-DPI**: 1×, 2×, 3× device scale for sharp outputs
-- **CSS Selector crop**: Capture only a specific element on the page (Pro+)
-- **Full-page capture**: Render the entire scrollable page (Pro+)
-- **Three return modes**: Binary file, Base64 string, or Data URL
-- **Credential test**: Validate your API key directly from n8n's credential settings
 
 ---
 
 ## Installation
 
-### Via n8n Community Nodes (Recommended)
-
-1. In n8n, go to **Settings → Community Nodes**
-2. Click **Install**
-3. Enter: `n8n-nodes-renderpix`
-4. Click **Install** and restart n8n
-
-### Manual (Self-hosted n8n)
-
 ```bash
-cd ~/.n8n/custom
 npm install n8n-nodes-renderpix
 ```
 
-Restart n8n after installation.
+Or search **RenderPix** in the n8n Community Nodes library.
+
+Get your free API key at [renderpix.dev](https://renderpix.dev) — 100 renders/month, no credit card.
 
 ---
 
-## Setup
+## Operations
 
-### 1. Get an API Key
+### Render HTML
 
-Sign up at [renderpix.dev](https://renderpix.dev) and copy your API key from the dashboard. Keys start with `rpx_`.
+Convert an HTML string to a PNG, JPEG, or WebP image.
 
-### 2. Add Credential in n8n
+| Parameter | Description |
+|---|---|
+| HTML | HTML string to render |
+| Width / Height | Output dimensions in px |
+| Format | `png` / `jpeg` / `webp` |
+| Quality | 1–100 (JPEG/WebP) |
+| Scale | Device scale factor 0.5–3x |
+| Template Variables | Key-value pairs for `{{key}}` placeholders |
+| Wait Until | `load` / `domcontentloaded` / `networkidle` |
 
-1. Go to **Credentials → New Credential**
-2. Search for **RenderPix API**
-3. Paste your API key
-4. (Optional) Set a custom Base URL if self-hosted
-5. Click **Save** — n8n will test the connection automatically
-
----
-
-## Usage Examples
-
-### Example 1: Generate an OG Image (1200×630)
+**Template variables:**
 
 ```html
-<div style="
-  width: 1200px; height: 630px;
-  background: linear-gradient(135deg, #0066ff, #00ccff);
-  display: flex; align-items: center; justify-content: center;
-  font-family: sans-serif; color: white;
-">
-  <div style="text-align: center;">
-    <h1 style="font-size: 64px; margin: 0;">{{ $json.title }}</h1>
-    <p style="font-size: 28px; opacity: 0.8;">renderpix.dev</p>
-  </div>
-</div>
+<div>Hello, {{name}}!</div>
+<div>{{date}}</div>
 ```
 
-- **Width**: 1200, **Height**: 630, **Format**: PNG, **Return As**: Binary File
+Pass `vars: { name: "Alice", date: "June 2026" }` — filled before rendering.
 
-### Example 2: Instagram Carousel Slide (1080×1350)
+---
 
-```html
-<div style="width:1080px;height:1350px;background:#fff;padding:80px;font-family:sans-serif;">
-  <h2 style="font-size:72px;color:#0066ff;">{{ $json.headline }}</h2>
-  <p style="font-size:36px;color:#333;line-height:1.6;">{{ $json.body }}</p>
-</div>
+### Render Batch
+
+Render multiple HTML templates in a single API call. Returns array of base64-encoded images.
+
+| Parameter | Description |
+|---|---|
+| Items | Array of `{ html, vars }` objects |
+| Width / Height | Applied to all items |
+| Format | `png` / `jpeg` / `webp` |
+
+**Plan limits:** Starter ≤10, Pro/Scale ≤50 items per call.
+
+**Instagram carousel example (10 slides, 1 API call):**
+
+```json
+{
+  "items": [
+    { "html": "<div>{{title}}</div>", "vars": { "title": "Slide 1" } },
+    { "html": "<div>{{title}}</div>", "vars": { "title": "Slide 2" } }
+  ],
+  "width": 1080,
+  "height": 1350,
+  "format": "jpeg"
+}
 ```
 
-- **Width**: 1080, **Height**: 1350, **Scale**: 2× (Retina)
+---
 
-### Example 3: Certificate Generator
+### Screenshot URL
 
-```html
-<div style="width:1200px;height:850px;border:8px solid gold;padding:60px;text-align:center;font-family:Georgia,serif;">
-  <h1 style="font-size:56px;color:#1a1a1a;">Certificate of Completion</h1>
-  <p style="font-size:32px;margin:40px 0;">This certifies that</p>
-  <h2 style="font-size:48px;color:#0066ff;">{{ $json.name }}</h2>
-  <p style="font-size:24px;color:#666;">has completed <strong>{{ $json.course }}</strong></p>
-</div>
-```
+Capture a live webpage as an image.
 
-### Example 4: URL Screenshot
-
-Set **Operation** to **Screenshot URL**, enter the target URL. Combine with an HTTP Request node or Webhook to screenshot dynamic pages.
+| Parameter | Description |
+|---|---|
+| URL | Page to capture |
+| Width / Height | Viewport dimensions |
+| Format | `png` / `jpeg` / `webp` |
+| Full Page | Capture full scrollable page (Pro+) |
+| CSS Selector | Capture a specific element (Pro+) |
 
 ---
 
-## Node Parameters
+## Credentials
 
-### Operation: Render HTML
+Add a **RenderPix API** credential in n8n:
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| HTML | String | — | Raw HTML to render |
-| Width | Number | 1280 | Viewport width in px |
-| Height | Number | 720 | Viewport height in px |
-| Format | PNG / JPEG / WebP | PNG | Output format |
-| Quality | 1–100 | 90 | JPEG/WebP compression (ignored for PNG) |
-| Device Scale (DPR) | 1× / 2× / 3× | 1× | Retina multiplier |
-| CSS Selector | String | — | Crop to element (Pro+) |
-| Full Page | Boolean | false | Capture full scroll height (Pro+) |
-| Return As | Binary / Base64 / Data URL | Binary | Output format |
-| Binary Property Name | String | data | n8n binary field name (binary mode only) |
-
-### Operation: Screenshot URL
-
-Same parameters as above, but with **URL** instead of **HTML**.
+- **API Key** — from your [RenderPix dashboard](https://renderpix.dev/dashboard.html)
 
 ---
 
-## Plan Limits
+## Changelog
 
-| Feature | Free | Starter | Pro | Scale |
-|---------|------|---------|-----|-------|
-| Renders/month | 100 | 2,000 | 10,000 | 100,000 |
-| Max resolution | 1280×720 | 1920×1080 | 4K | 4K |
-| Formats | PNG | PNG, JPEG | All | All |
-| Scale (DPR) | 1× | 1×, 2× | 1×–3× | 1×–3× |
-| Full page | ✗ | ✗ | ✓ | ✓ |
-| CSS Selector | ✗ | ✗ | ✓ | ✓ |
-| SLA | — | — | 99.9% | 99.9% |
+### v1.1.0 — June 2026
+- **New: Render Batch operation** — render multiple templates in one call
+- **New: Template Variables** — `{{key}}` placeholder injection on Render HTML and Render Batch
+- **New: Wait Until** — `load` | `domcontentloaded` | `networkidle`
 
----
+### v1.0.1
+- Fix: Windows npm install EINVAL error (shell:true patch)
 
-## Common Workflows
-
-- **Social media automation**: Generate unique images per post from a spreadsheet or Airtable
-- **Dynamic OG images**: Trigger on CMS publish webhook → render → upload to CDN
-- **Certificate generation**: Form submit → render HTML certificate → email as PDF attachment
-- **Batch rendering**: Loop over a list of items and render an image for each
-- **Monitoring screenshots**: Scheduled screenshots of dashboards or competitor pages
+### v1.0.0
+- Initial release: Render HTML, Screenshot URL
 
 ---
 
-## Troubleshooting
+## Links
 
-**401 Unauthorized**: Check your API key in credentials. Keys must start with `rpx_`.
-
-**402 Usage Limit**: You've reached your plan's monthly render limit. Upgrade at [renderpix.dev/pricing](https://renderpix.dev/pricing).
-
-**Image appears pixelated**: Enable **Device Scale (DPR) 2×** for retina quality.
-
-**External fonts/CSS not loading**: Use inline styles or embed CSS in a `<style>` tag inside your HTML.
-
-**Node not appearing in n8n**: Restart n8n after installation. Clear `~/.n8n/` cache if needed.
-
----
-
-## Support
-
-- **Docs**: [renderpix.dev/docs.html](https://renderpix.dev/docs.html)
-- **Issues**: [GitHub Issues](https://github.com/renderpix/n8n-nodes-renderpix/issues)
-- **Email**: support@renderpix.dev
-
----
-
-## License
-
-[MIT](LICENSE.md)
+- **RenderPix:** https://renderpix.dev
+- **Docs:** https://renderpix.dev/docs.html
+- **npm:** https://www.npmjs.com/package/n8n-nodes-renderpix
+- **Issues:** https://github.com/ozgurdogus/renderpixn8n/issues
